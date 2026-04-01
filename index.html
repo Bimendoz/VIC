@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mas4dBu - Broadcast Control Pro</title>
+    <link href="https://fonts.cdnfonts.com/css/seven-segment" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #000000;
+            --panel: rgba(20, 20, 25, 0.9);
+            --morado: #8d52ff;
+            --rojo-alarma: #ff0000;
+            --amarillo-aviso: #ffcc00;
+            --cyan: #00f2ff;
+            --text: #ffffff;
+            --modal-bg: rgba(10, 10, 15, 0.95);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            transition: background 0.2s ease;
+        }
+
+        /* --- CANDADO SUTIL --- */
+        #floatingLock {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: #111;
+            border-radius: 10px;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 100;
+            border: 1px solid #222;
+        }
+        .lock-svg { width: 18px; height: 18px; fill: #444; }
+
+        /* --- MODAL DE SEGURIDAD --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+        }
+
+        .modal-content {
+            background: var(--panel);
+            border: 1px solid var(--morado);
+            padding: 30px;
+            border-radius: 24px;
+            text-align: center;
+            width: 300px;
+            box-shadow: 0 0 50px rgba(141, 82, 255, 0.2);
+        }
+
+        .modal-content h3 { margin-top: 0; font-size: 18px; color: var(--morado); }
+        .modal-content p { font-size: 13px; color: #888; }
+
+        .pin-input {
+            width: 80%;
+            font-size: 24px;
+            letter-spacing: 10px;
+            margin: 20px 0;
+            padding: 10px;
+            background: #000;
+            border: 1px solid #444;
+            color: var(--text);
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .modal-btns { display: flex; gap: 10px; justify-content: center; }
+        .btn-modal { padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-confirm { background: var(--morado); color: white; }
+        .btn-cancel { background: #333; color: #888; }
+
+        /* --- PIE DE APP --- */
+        .app-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 15px 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            text-align: center;
+            z-index: 20;
+        }
+        .credits-text { font-size: 10px; letter-spacing: 1.2px; color: rgba(255, 255, 255, 0.3); font-weight: 300; transition: color 0.3s ease; }
+        .credits-text:hover { color: var(--morado); }
+
+        /* --- ALARMA ROJO INTENSO --- */
+        .alarm-active { animation: blinkRedStrong 0.5s infinite; }
+        @keyframes blinkRedStrong {
+            0% { background-color: var(--bg); }
+            50% { background-color: var(--rojo-alarma); } 
+            100% { background-color: var(--bg); }
+        }
+
+        .container {
+            width: 95%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            padding: 10px;
+            padding-bottom: 60px;
+            z-index: 10;
+            transition: all 0.4s ease;
+        }
+
+        @media (orientation: landscape) {
+            .container { max-width: 850px; display: grid; grid-template-columns: 1fr 1fr; }
+            .full-width { grid-column: span 2; }
+        }
+
+        .card {
+            background: var(--panel);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+
+        .hidden-panel { display: none !important; }
+
+        .config-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            background: #111;
+            border: 1px solid #333;
+            color: var(--morado);
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+        input:disabled { opacity: 0.4; border-color: #222; color: #666; }
+
+        .btn-lock {
+            grid-column: span 3;
+            background: var(--morado);
+            border: none;
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            font-size: 13px;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .btn-lock.locked-state { background: #2a2a2e; color: #888; }
+
+        .ip-error { background: var(--rojo-alarma) !important; animation: shake 0.4s ease; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+
+        /* TIMER DISPLAY Y COLORES DE ESTADO */
+        .timer-display {
+            font-family: 'Seven Segment', sans-serif;
+            font-size: 110px;
+            color: var(--morado);
+            margin: 10px 0;
+            text-shadow: 0 0 20px rgba(141, 82, 255, 0.4);
+            transition: color 0.3s ease, text-shadow 0.3s ease;
+        }
+        .warning { color: var(--amarillo-aviso); text-shadow: 0 0 20px rgba(255, 204, 0, 0.5); }
+        .negative { color: var(--rojo-alarma); text-shadow: 0 0 20px rgba(255, 0, 0, 0.6); }
+
+        .timer-setup { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+        .timer-setup input { width: 60px; background: transparent; border-bottom: 2px solid #333; border-top: 0; border-left: 0; border-right: 0; font-size: 18px; }
+
+        .alaire-btn {
+            width: 160px; height: 160px; border-radius: 50%; border: 8px solid #222;
+            background: #111; color: #333; font-size: 22px; font-weight: 900;
+            cursor: not-allowed; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            margin: 0 auto; opacity: 0.5;
+        }
+        .alaire-btn.ready { cursor: pointer; opacity: 1; color: #555; border-color: #333; }
+        .alaire-btn.active { color: #fff; background: var(--rojo-alarma); border-color: #ff6666; animation: pulse-red 2s infinite; }
+        @keyframes pulse-red { 0%, 100% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.5); } 50% { box-shadow: 0 0 50px rgba(255, 0, 0, 0.8); } }
+
+        .btn-reset { background: #222; border: 1px solid #444; color: #aaa; padding: 8px 25px; border-radius: 20px; cursor: pointer; margin-top: 10px; font-size: 12px; }
+        .btn-reset:disabled { opacity: 0.1; cursor: not-allowed; }
+        label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 2px; }
+    </style>
+</head>
+<body>
+
+<div id="floatingLock" onclick="openModal()">
+    <svg class="lock-svg" viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/></svg>
+</div>
+
+<div class="modal-overlay" id="securityModal">
+    <div class="modal-content" id="step1">
+        <h3>ACCESO RESTRINGIDO</h3>
+        <p>Ingresa el código de seguridad para modificar la configuración técnica.</p>
+        <input type="password" id="pinInput" class="pin-input" maxlength="4" placeholder="••••">
+        <div class="modal-btns">
+            <button class="btn-modal btn-cancel" onclick="closeModal()">CANCELAR</button>
+            <button class="btn-modal btn-confirm" onclick="validatePin()">CONFIRMAR</button>
+        </div>
+    </div>
+    <div class="modal-content" id="step2" style="display:none;">
+        <h3>¿ESTÁS SEGURO?</h3>
+        <p>Vas a desbloquear la IP y el Ruteo.</p>
+        <div class="modal-btns">
+            <button class="btn-modal btn-cancel" onclick="closeModal()">CANCELAR</button>
+            <button class="btn-modal btn-confirm" onclick="executeUnlock()">SÍ, DESBLOQUEAR</button>
+        </div>
+    </div>
+</div>
+
+<div class="container" id="mainContainer">
+    <div class="card full-width" id="configCard">
+        <div class="config-row">
+            <div><label>IP Host</label><input type="text" id="ip" value="10.120.8.62"></div>
+            <div><label>Input</label><input type="number" id="in" value="10"></div>
+            <div><label>Overlay</label><input type="number" id="over" value="1"></div>
+            <button id="lockBtn" class="btn-lock"><span id="lockText">CONECTAR VMIX</span></button>
+        </div>
+    </div>
+
+    <div class="card">
+        <label>Tiempo de Sesión</label>
+        <div id="display" class="timer-display">20:00</div>
+        <div class="timer-setup" id="setupContainer">
+            <input type="number" id="mIn" value="20">
+            <span style="color:#333">:</span>
+            <input type="number" id="sIn" value="0">
+        </div>
+        <button id="resetBtn" class="btn-reset" onclick="resetTimer()">Reset Manual</button>
+    </div>
+
+    <div class="card">
+        <label style="display:block; margin-bottom:20px;">Control de Emisión</label>
+        <button id="mainBtn" class="alaire-btn">AL AIRE</button>
+    </div>
+</div>
+
+<footer class="app-footer">
+    <div class="credits-text">© 2026 Mas4dBu. All rights reserved.</div>
+</footer>
+
+<script>
+    let timerInterval;
+    let secondsTotal = 1200;
+    let isLive = false;
+    let isLocked = false;
+    const MASTER_PIN = "4444";
+
+    const lockBtn = document.getElementById('lockBtn');
+    const configCard = document.getElementById('configCard');
+    const floatingLock = document.getElementById('floatingLock');
+    const lockText = document.getElementById('lockText');
+    const ipIn = document.getElementById('ip');
+    const inputIn = document.getElementById('in');
+    const overIn = document.getElementById('over');
+    const mIn = document.getElementById('mIn');
+    const sIn = document.getElementById('sIn');
+    const resetBtn = document.getElementById('resetBtn');
+    const mainBtn = document.getElementById('mainBtn');
+    const display = document.getElementById('display');
+
+    function playBeep(freq, duration) {
+        try {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = context.createOscillator();
+            const gain = context.createGain();
+            osc.type = "sine"; osc.frequency.setValueAtTime(freq, context.currentTime);
+            gain.gain.setValueAtTime(0.1, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + duration);
+            osc.connect(gain); gain.connect(context.destination);
+            osc.start(); osc.stop(context.currentTime + duration);
+        } catch(e) {}
+    }
+
+    function showIpError() {
+        if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        playBeep(150, 0.3);
+        lockBtn.classList.add('ip-error');
+        setTimeout(() => lockBtn.classList.remove('ip-error'), 1200);
+    }
+
+    lockBtn.addEventListener('click', () => {
+        if (!isLocked) {
+            const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+            if (ipIn.value === "" || !ipRegex.test(ipIn.value)) { showIpError(); return; }
+            applyLockState(true);
+            saveConfig();
+        } else { openModal(); }
+    });
+
+    function applyLockState(locked) {
+        isLocked = locked;
+        [ipIn, inputIn, overIn].forEach(el => el.disabled = isLocked);
+        if (isLocked) {
+            configCard.classList.add('hidden-panel');
+            floatingLock.style.display = 'flex';
+            mainBtn.classList.add('ready');
+        } else {
+            configCard.classList.remove('hidden-panel');
+            floatingLock.style.display = 'none';
+            mainBtn.classList.remove('ready');
+        }
+    }
+
+    const modal = document.getElementById('securityModal');
+    const pinInput = document.getElementById('pinInput');
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+
+    function openModal() { modal.style.display = 'flex'; step1.style.display = 'block'; step2.style.display = 'none'; pinInput.value = ""; pinInput.focus(); }
+    function closeModal() { modal.style.display = 'none'; }
+    function validatePin() { if (pinInput.value === MASTER_PIN) { step1.style.display = 'none'; step2.style.display = 'block'; } else { showIpError(); pinInput.value = ""; } }
+    function executeUnlock() { applyLockState(false); closeModal(); }
+    pinInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') validatePin(); });
+
+    mainBtn.addEventListener('click', () => {
+        if (!isLocked) { showIpError(); return; }
+        isLive = !isLive;
+        mainBtn.classList.toggle('active', isLive);
+        mIn.disabled = isLive; sIn.disabled = isLive; resetBtn.disabled = isLive;
+        const url = `http://${ipIn.value}:8088/api/?Function=OverlayInput${overIn.value}&Input=${inputIn.value}`;
+        fetch(url, { mode: 'no-cors' });
+        if (isLive) startSession(); else stopSession();
+    });
+
+    function startSession() {
+        clearInterval(timerInterval);
+        document.body.classList.remove('alarm-active');
+        display.classList.remove('negative', 'warning');
+        secondsTotal = (parseInt(mIn.value) * 60) + parseInt(sIn.value);
+        timerInterval = setInterval(() => {
+            secondsTotal--; updateDisplay();
+            if (secondsTotal <= 0) {
+                document.body.classList.add('alarm-active');
+                display.classList.remove('warning'); display.classList.add('negative');
+                playBeep(440, 0.5); if (navigator.vibrate) navigator.vibrate(500);
+            } else if (secondsTotal <= 30) { display.classList.add('warning'); }
+        }, 1000);
+    }
+
+    function stopSession() { clearInterval(timerInterval); document.body.classList.remove('alarm-active'); resetTimer(); }
+    function updateDisplay() {
+        const absSec = Math.abs(secondsTotal);
+        const m = Math.floor(absSec / 60), s = absSec % 60, sign = secondsTotal < 0 ? "-" : "";
+        display.innerText = `${sign}${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function resetTimer() {
+        if(isLive) return;
+        clearInterval(timerInterval); document.body.classList.remove('alarm-active');
+        display.classList.remove('negative', 'warning');
+        secondsTotal = (parseInt(mIn.value) * 60) + parseInt(sIn.value);
+        updateDisplay(); saveConfig();
+    }
+
+    function saveConfig() {
+        localStorage.setItem('mas4dbu_config', JSON.stringify({
+            ip: ipIn.value, in: inputIn.value, over: overIn.value, m: mIn.value, s: sIn.value
+        }));
+    }
+
+    function loadConfig() {
+        const saved = localStorage.getItem('mas4dbu_config');
+        if (saved) {
+            const c = JSON.parse(saved);
+            ipIn.value = c.ip || "10.120.8.62"; inputIn.value = c.in || "10";
+            overIn.value = c.over || "1"; mIn.value = c.m || "20"; sIn.value = c.s || "0";
+            resetTimer();
+        }
+    }
+    window.onload = loadConfig;
+</script>
+</body>
+</html>
